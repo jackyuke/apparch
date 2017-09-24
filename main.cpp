@@ -1,5 +1,6 @@
 #include <stdlib.h>
-#include "rbtree.h"
+#include "rbtree.hxx"
+#include <vector>
 #include <cppunit/TestCase.h>
 #include <cppunit/TestResult.h>
 #include <cppunit/TestResultCollector.h>
@@ -19,16 +20,22 @@ public:
     void RunRBTreeTest()
     {
         IntRBTree tree;
-        int test_data[] = {2, 5};
+        int test_data[] = {2, 5, 3, 9, 15, 6};
+        IntVector sortedData;
         for (unsigned int inx = 0; inx < sizeof(test_data) / sizeof(int); ++inx)
+        {
             tree.Insert(test_data[inx]);
+            sortedData.push_back(test_data[inx]);
+        }
 
+        CPPUNIT_ASSERT_EQUAL(tree.Check(), true);
+        std::sort(sortedData.begin(), sortedData.end());
         int index = 0;
         for (IntRBTree::Iterator iter = tree.Begin();
-                !iter.IsEnd(); iter.Next())
+                !iter.IsEnd(); iter = iter.Next())
         {
             int value = iter.GetValue();
-            CPPUNIT_ASSERT_EQUAL(value, test_data[index++]);
+            CPPUNIT_ASSERT_EQUAL(value, sortedData[index++]);
         }
     }
     static std::string GetSuitName()
