@@ -364,9 +364,44 @@ protected:
         }
         return true;
     }
+    int GetBlackNodeCountForLeafNode(TreeNodeType *node) const
+    {
+        int blackNodeCount = 1;
+        TreeNodeType *thisNode = node;
+        while(thisNode != m_root)
+        {
+            if (thisNode->GetColor() == Black)
+                ++blackNodeCount;
+            thisNode = thisNode->GetParent();
+        }
+        return blackNodeCount;
+    }
+    bool TraverseChildNode(TreeNodeType *node, int currentBlackNodeCount, int blackNodeCount) const
+    {
+        if (node->GetColor() == Black)
+            ++currentBlackNodeCount;
+        if (node->GetLeftChild() == nullptr && node->GetRightChild() == nullptr)
+            return currentBlackNodeCount == blackNodeCount;
+        if (node->GetLeftChild())
+        {
+            if (!TraverseChildNode(node->GetLeftChild(), currentBlackNodeCount, blackNodeCount))
+                return false;
+        }
+        if (node->GetRightChild())
+        {
+            if (!TraverseChildNode(node->GetRightChild(), currentBlackNodeCount, blackNodeCount))
+                return false;
+        }
+        return true;
+    }
     bool CheckBlackNodes() const
     {
-        return true;
+        if (m_root == nullptr)
+            return true;
+        TreeNodeType *leftLeafNode = m_root->GetLeftLeaf();
+        int blackNodeCount = GetBlackNodeCountForLeafNode(leftLeafNode);
+        int currentBlackNodeCount = 0;
+        return TraverseChildNode(m_root, currentBlackNodeCount, blackNodeCount);
     }
     void ClearRootNode()
     {
