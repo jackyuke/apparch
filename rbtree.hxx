@@ -75,11 +75,11 @@ public:
     {
         m_rightChild = node;
     }
-    ThisNodeType* RotateLeft(ThisNodeType *root)
+    void RotateLeft(ThisNodeType*& root)
     {
         ThisNodeType *parent = GetParent();
         if (this->m_rightChild == nullptr)
-            return root; // do not rotate in case of root or no right child
+            return; // do not rotate in case of root or no right child
         if (parent)
         {
             if (parent->m_leftChild == this)
@@ -95,13 +95,12 @@ public:
         if (this->m_parent->m_leftChild)
             this->m_parent->m_leftChild->m_parent = this;
         this->m_parent->m_leftChild = this;
-        return root;
     }
-    ThisNodeType* RotateRight(ThisNodeType *root)
+    void RotateRight(ThisNodeType*& root)
     {
         ThisNodeType *parent = GetParent();
         if (this->m_leftChild == nullptr)
-            return root; // do not rotate in case of root or no left child
+            return; // do not rotate in case of root or no left child
         if (parent)
         {
             if (parent->m_leftChild == this)
@@ -117,7 +116,6 @@ public:
         if (this->m_parent->m_rightChild)
             this->m_parent->m_rightChild->m_parent = this;
         this->m_parent->m_rightChild = this;
-        return root;
     }
     ThisNodeType* GetLeftLeaf() const
     {
@@ -270,17 +268,17 @@ public:
                     parent->SetColor(Black);
                     gf->SetColor(Red);
                     if (isParentInLeft)
-                        m_root = gf->RotateRight(m_root);
+                        gf->RotateRight(m_root);
                     else
-                        m_root = gf->RotateLeft(m_root);
+                        gf->RotateLeft(m_root);
                     node = gf;
                 }
                 else
                 {
                     if (isParentInLeft)
-                        m_root = parent->RotateLeft(m_root);
+                        parent->RotateLeft(m_root);
                     else
-                        m_root = parent->RotateRight(m_root);
+                        parent->RotateRight(m_root);
                     node = parent;
                 }
             }
@@ -346,7 +344,168 @@ public:
             leftLeaf = m_root;
         return Iterator(leftLeaf);
     }
+    Iterator Find(ValueType v) const
+    {
+        TreeNodeType *node = FindTreeNode(m_root, v);
+        return Iterator(node, true);
+    }
+    void Erase(ValueType v)
+    {
+        RemoveTreeNode(FindTreeNode(m_root, v));
+    }
+    static TreeNodeType* GetSuccessor(TreeNodeType *node)
+    {
+        if (node == nullptr)
+            return nullptr;
+        if (node->GetRightChild())
+        {
+            TreeNodeType *leftLeaf = node->GetRightChild()->GetLeftLeaf();
+            return leftLeaf ? leftLeaf : node->GetRightChild();
+        }
+        // find parent whose is on left of grandfather
+        TreeNodeType *parent = node->GetParent();
+        while (parent)
+        {
+            TreeNodeType *gf = parent->GetParent();
+            if (gf && parent == gf->GetLeftChild())
+                return gf;
+            parent = gf;
+        }
+        return nullptr;
+    }
 protected:
+    void RemoveTreeNode(TreeNodeType *node)
+    {
+        if (node == nullptr)
+            return;
+        TreeNodeType *successor = nullptr, *nodeToDelete = node;
+        if (node->GetLeftChild() == nullptr || node->GetRightChild() == nullptr)
+        {
+            if (node->GetLeftChild())
+                successor = node->GetLeftChild();
+            else
+                successor = node->GetRightChild();
+        }
+        else
+        {
+            nodeToDelete = GetSuccessor(node);
+            node->SetValue(nodeToDelete->GetValue()); // there must be a successor to delete
+            successor = nodeToDelete->GetRightChild();
+        }
+        TreeNodeType *parent = nodeToDelete->GetParent();
+        if (parent)
+        {
+            if (nodeToDelete == parent->GetLeftChild())
+                parent->SetLeftChild(successor);
+            else
+                parent->SetRightChild(successor);
+            if (successor)
+                successor->SetParent(parent);
+        }
+        else
+            m_root = successor;
+
+        if (nodeToDelete->GetColor() == Black)
+            FixDeleteNode(parent, successor);
+        if (m_root)
+            m_root->SetColor(Black);
+        delete nodeToDelete;
+    }
+    void FixDeleteNode(TreeNodeType *parent, TreeNodeType *successor)
+    {
+        while (true)
+        {
+            if (parent == nullptr)
+                return;
+            if (successor && successor->GetColor() == Red)
+            {
+                successor->SetColor(Black);
+                return; // balanced
+            }
+            else
+            {
+                bool siblingLeft = (successor != parent->GetLeftChild());
+                TreeNodeType *sibling = siblingLeft ? parent->GetLeftChild() : parent->GetRightChild();
+                if (sibling == nullptr)
+                {
+                    successor = parent;
+                    parent = parent->GetParent();
+                }
+                else if (sibling->GetColor() == Red)
+                {
+                    // rotate to parent and color it to black
+                    sibling->SetColor(Black);
+                    parent->SetColor(Red);
+                    if (siblingLeft)
+                        parent->RotateRight(m_root);
+                    else
+                        parent->RotateLeft(m_root);
+                    // handle it further, next round: sibling is black
+                }
+                else
+                {
+                    // consider children of sibling
+                    bool childLeftRed = sibling->GetLeftChild() ? sibling->GetLeftChild()->GetColor() == Red : false;
+                    bool childRightRed = sibling->GetRightChild() ? sibling->GetRightChild()->GetColor() == Red : false;
+                    if (childLeftRed || childRightRed)
+                    {
+                        if ((siblingLeft && childLeftRed) || (!siblingLeft && childRightRed)) // far child is red
+                        {
+                            sibling->SetColor(parent->GetColor());
+                            parent->SetColor(Black);
+                            if (childLeftRed)
+                                sibling->GetLeftChild()->SetColor(Black);
+                            else
+                                sibling->GetRightChild()->SetColor(Black);
+                            if (siblingLeft)
+                                parent->RotateRight(m_root);
+                            else
+                                parent->RotateLeft(m_root);
+                            return; // balanced
+                        }
+                        else
+                        {
+                            // red is different side of sibling
+                            // make far child to red
+                            sibling->SetColor(Red);
+                            if (childRightRed)
+                            {
+                                sibling->GetRightChild()->SetColor(Black);
+                                sibling->RotateLeft(m_root);
+                            }
+                            else
+                            {
+                                sibling->GetLeftChild()->SetColor(Black);
+                                sibling->RotateRight(m_root);
+                            }
+                            // next step: far child to red
+                        }
+                    }
+                    else
+                    {
+                        // all children are black
+                        sibling->SetColor(Red);
+                        parent->SetColor(Black);
+                        successor = parent;
+                        parent = parent->GetParent();
+                        // move to next round: parent is current node
+                    }
+                }
+            }
+        }
+    }
+    TreeNodeType *FindTreeNode(TreeNodeType *node, ValueType v) const
+    {
+        if (node == nullptr)
+            return nullptr;
+        if (node->GetValue() == v)
+            return node;
+        else if (node->GetValue() > v)
+            return FindTreeNode(node->GetLeftChild(), v);
+        else
+            return FindTreeNode(node->GetRightChild(), v);
+        return nullptr;
+    }
     bool CheckConsecutiveRed(TreeNodeType *node) const
     {
         if (node == nullptr)
@@ -380,8 +539,6 @@ protected:
     {
         if (node->GetColor() == Black)
             ++currentBlackNodeCount;
-        if (node->GetLeftChild() == nullptr && node->GetRightChild() == nullptr)
-            return currentBlackNodeCount == blackNodeCount;
         if (node->GetLeftChild())
         {
             if (!TraverseChildNode(node->GetLeftChild(), currentBlackNodeCount, blackNodeCount))
@@ -392,6 +549,8 @@ protected:
             if (!TraverseChildNode(node->GetRightChild(), currentBlackNodeCount, blackNodeCount))
                 return false;
         }
+        if (node->GetLeftChild() == nullptr || node->GetRightChild() == nullptr)
+            return currentBlackNodeCount == blackNodeCount;
         return true;
     }
     bool CheckBlackNodes() const

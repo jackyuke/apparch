@@ -30,9 +30,21 @@ public:
 
         CPPUNIT_ASSERT_EQUAL(tree.Check(), true);
         std::sort(sortedData.begin(), sortedData.end());
+        CheckOutput(tree, sortedData);
+
+        IntRBTree::Iterator iter = tree.Find(5);
+        CPPUNIT_ASSERT_EQUAL(iter.IsEnd(), false);
+
+        tree.Erase(15);
+        sortedData.erase(std::remove(sortedData.begin(), sortedData.end(), 15));
+        CheckOutput(tree, sortedData);
+        CPPUNIT_ASSERT_EQUAL(tree.Check(), true);
+    }
+    void CheckOutput(IntRBTree& tree, const IntVector& sortedData)
+    {
         int index = 0;
         for (IntRBTree::Iterator iter = tree.Begin();
-                !iter.IsEnd(); iter = iter.Next())
+             !iter.IsEnd(); iter = iter.Next())
         {
             int value = iter.GetValue();
             CPPUNIT_ASSERT_EQUAL(value, sortedData[index++]);
